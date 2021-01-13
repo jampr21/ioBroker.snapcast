@@ -1,0 +1,77 @@
+{
+	"common": {
+		"name": "snapcast",
+		"version": "0.0.1",
+		"news": {
+			"0.0.1": {
+				"en": "initial release",
+				"de": "Erstveröffentlichung",
+				"ru": "Начальная версия",
+				"pt": "lançamento inicial",
+				"nl": "Eerste uitgave",
+				"fr": "Première version",
+				"it": "Versione iniziale",
+				"es": "Versión inicial",
+				"pl": "Pierwsze wydanie",
+				"zh-cn": "首次出版"
+			}
+		},
+		"title": "Snapcast",
+		"titleLang": {
+			"en": "Snapcast",
+			"de": "Snapcast",
+			"ru": "Snapcast",
+			"pt": "Snapcast",
+			"nl": "Snapcast",
+			"fr": "Snapcast",
+			"it": "Snapcast",
+			"es": "Snapcast",
+			"pl": "Snapcast",
+			"zh-cn": "快照"
+		},
+		"desc": {
+			"en": "multiroom client-server audio player",
+			"de": "Multiroom-Client-Server-Audioplayer",
+			"ru": "многокомнатный клиент-серверный аудиоплеер",
+			"pt": "reprodutor de áudio cliente-servidor multiroom",
+			"nl": "multiroom client-server audiospeler",
+			"fr": "lecteur audio client-serveur multiroom",
+			"it": "lettore audio client-server multiroom",
+			"es": "reproductor de audio cliente-servidor multisala",
+			"pl": "Multiroom odtwarzacz audio klient-serwer",
+			"zh-cn": "多房间客户端服务器音频播放器"
+		},
+		"authors": [
+			"Jampr <jampr@online.de>"
+		],
+		"keywords": [
+			"multiroom",
+			"client-server audio player"
+		],
+		"license": "MIT",
+		"platform": "Javascript/Node.js",
+		"main": "build/main.js",
+		"icon": "snapcast.png",
+		"enabled": true,
+		"extIcon": "https://raw.githubusercontent.com/Jampr/ioBroker.snapcast/master/admin/snapcast.png",
+		"readme": "https://github.com/Jampr/ioBroker.snapcast/blob/master/README.md",
+		"loglevel": "info",
+		"mode": "daemon",
+		"type": "multimedia",
+		"compact": true,
+		"connectionType": "local",
+		"dataSource": "push",
+		"materialize": true,
+		"dependencies": [
+			{
+				"js-controller": ">=2.0.0"
+			}
+		]
+	},
+	"native": {
+		"option1": true,
+		"option2": "42"
+	},
+	"objects": [],
+	"instanceObjects": []
+}

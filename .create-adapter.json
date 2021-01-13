@@ -1,0 +1,37 @@
+{
+	"cli": true,
+	"adapterName": "snapcast",
+	"title": "Snapcast",
+	"description": "multiroom client-server audio player",
+	"keywords": [
+		"multiroom",
+		"client-server audio player"
+	],
+	"expert": "no",
+	"features": [
+		"adapter"
+	],
+	"adminFeatures": [],
+	"type": "multimedia",
+	"startMode": "daemon",
+	"connectionType": "local",
+	"dataSource": "push",
+	"connectionIndicator": "no",
+	"language": "TypeScript",
+	"adminReact": "no",
+	"tools": [
+		"ESLint"
+	],
+	"indentation": "Tab",
+	"quotes": "double",
+	"es6class": "yes",
+	"authorName": "Jampr",
+	"authorGithub": "Jampr",
+	"authorEmail": "jampr@online.de",
+	"gitRemoteProtocol": "HTTPS",
+	"gitCommit": "no",
+	"license": "MIT License",
+	"ci": "gh-actions",
+	"dependabot": "no",
+	"creatorVersion": "1.31.0"
+}
