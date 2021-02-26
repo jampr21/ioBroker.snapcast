@@ -2,16 +2,16 @@
 /*
  * Created with @iobroker/create-adapter v1.31.0
  */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function (o, m, k, k2) {
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function () { return m[k]; } });
-}) : (function (o, m, k, k2) {
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function (o, v) {
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
     Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function (o, v) {
+}) : function(o, v) {
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || function (mod) {
@@ -21,16 +21,16 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 // The adapter-core module gives you access to the core ioBroker functions
 // you need to create an adapter
 const utils = __importStar(require("@iobroker/adapter-core"));
-
 // Load your modules here, e.g.:
 // import * as fs from "fs";
-
-const WebSocket = require("ws");
-
+const ws_1 = __importDefault(require("ws"));
 class Snapcast extends utils.Adapter {
     constructor(options = {}) {
         super({
@@ -50,63 +50,73 @@ class Snapcast extends utils.Adapter {
         // Initialize your adapter here
         // The adapters config (in the instance object everything under the attribute "native") is accessible via
         // this.config:
-        this.log.info("config option1: " + this.config.host);
-        this.log.info("config option2: " + this.config.port);
+        // eslint-disable-next-line @typescript-eslint/indent
+        this.log.info("config host: " + this.config.host);
+        this.log.info("config port: " + this.config.port);
         /*
         For every state in the system there has to be also an object of type state
         Here a simple template for a boolean variable named "testVariable"
         Because every adapter instance uses its own unique namespace variable names can't collide with other adapters variables
         */
-        await this.setObjectNotExistsAsync("rasJson", {
+        await this.setObjectNotExistsAsync("rawJson", {
             type: "state",
             common: {
                 name: "rawJson",
-                type: "rawJson",
+                type: "string",
                 role: "string",
                 read: true,
                 write: true,
             },
             native: {},
         });
-
+        await this.setObjectNotExistsAsync("Remote", {
+            type: "state",
+            common: {
+                name: "send values",
+                type: "string",
+                role: "state",
+                read: true,
+                write: true,
+            },
+            native: {},
+        });
+        await this.setObjectNotExistsAsync("Remote.id", {
+            type: "state",
+            common: {
+                name: "id",
+                type: "string",
+                role: "state",
+                read: true,
+                write: true,
+            },
+            native: {},
+        });
         const ServerGetRPCVersion_request = {
-            'id': 0,
-            'jsonrpc': '2.0',
-            'method': 'Server.GetRPCVersion'
+            "id": 0,
+            "jsonrpc": "2.0",
+            "method": "Server.GetRPCVersion"
         };
-
         const ServerGetStatus_request = { "id": 1, "jsonrpc": "2.0", "method": "Server.GetStatus" };
-
-
         // Reset the connection indicator during startup
         //thanks to UncleSam, stolen from loxone adapter
         this.setState("info.connection", false, true);
-
         //open websocket to snapcast server host:port
-        this.client = new WebSocket("ws://" + this.config.host + ":" + this.config.port + "/jsonrpc", {
-            origin: "http://" + this.config.host + ":" + this.config.port + "/jsonrpc"
-        });
-
+        const client = new ws_1.default("ws://" + this.config.host + ":" + this.config.port + "/jsonrpc");
         //catch error during establishing connection
-        this.client.on('error', (error) => {
+        client.on("error", (error) => {
             this.log.error("Socket connection failed. Reason: " + error);
             this.setState("info.connection", false, true);
-        })
-
-        this.client.on("open", () => {
-            this.client.send(JSON.stringify(++ServerGetRPCVersion_request.id && ServerGetRPCVersion_request));
+        });
+        client.on("open", () => {
+            client.send(JSON.stringify(++ServerGetRPCVersion_request.id && ServerGetRPCVersion_request));
             this.log.info("connection opened");
             this.setState("info.connection", true, true);
-
             //get current server status (includes all clients, groups and streams)
-            this.client.send(JSON.stringify(++ServerGetStatus_request.id && ServerGetStatus_request));
+            client.send(JSON.stringify(++ServerGetStatus_request.id && ServerGetStatus_request));
         });
-
         // alles, was reinkommt
-        this.client.on('message', (data) => {
-
-            let jsonData = JSON.parse(data);
-
+        client.on("message", (data) => {
+            const jsonData = JSON.parse(data);
             //check if it is a response of an event, that was requested
             if (typeof jsonData.id !== "undefined") {
                 //response
@@ -121,7 +131,8 @@ class Snapcast extends utils.Adapter {
                         break;
                     }
                 }
-            } else {
+            }
+            else {
                 //notification
                 switch (jsonData.method) {
                     case "Client.OnVolumeChanged": {
@@ -133,16 +144,8 @@ class Snapcast extends utils.Adapter {
                         break;
                     }
                 }
-
             }
-
         });
-
-
-
-
-
-
         // In order to get state updates, you need to subscribe to them. The following line adds a subscription for our variable we have created above.
         //FSR        this.subscribeStates("testVariable");
         // You can also add a subscription for multiple states. The following line watches all states starting with "lights."
@@ -162,9 +165,10 @@ class Snapcast extends utils.Adapter {
         //fsr        await this.setStateAsync("testVariable", { val: true, ack: true, expire: 30 });
         // examples for the checkPassword/checkGroup functions
         /*        let result = await this.checkPasswordAsync("admin", "iobroker");
-                this.log.info("check user admin pw iobroker: " + result);
-                result = await this.checkGroupAsync("admin", "admin");
-                this.log.info("check group user admin group admin: " + result);
+        this.log.info("check user admin pw iobroker: " + result);
+
+        result = await this.checkGroupAsync("admin", "admin");
+        this.log.info("check group user admin group admin: " + result);
         */
     }
     /**
@@ -210,25 +214,32 @@ class Snapcast extends utils.Adapter {
             this.log.info(`state ${id} deleted`);
         }
     }
-
-
-
+    // If you need to accept messages in your adapter, uncomment the following block and the corresponding line in the constructor.
+    // /**
+    //  * Some message was sent to this instance over message box. Used by email, pushover, text2speech, ...
+    //  * Using this method requires "common.messagebox" property to be set to true in io-package.json
+    //  */
+    // private onMessage(obj: ioBroker.Message): void {
+    // 	if (typeof obj === "object" && obj.message) {
+    // 		if (obj.command === "send") {
+    // 			// e.g. send email or pushover or whatever
+    // 			this.log.info("send command");
+    // 			// Send response in callback if required
+    // 			if (obj.callback) this.sendTo(obj.from, obj.command, "Message received", obj.callback);
+    // 		}
+    // 	}
+    // }
     async storeServerGetStatus(jsonData) {
-        this.log.info("id " + jsonData.id + "stream# " + jsonData.result.server.streams[0].id);
-
-        let baseFolder = "ServerStatus";
-        let streamsFolder = baseFolder + ".Streams";
-        let serverFolder = baseFolder + '.Server';       
-        let groupsFolder = baseFolder + '.Groups';     
-
-        let server = jsonData.result.server;
-
-        //streams 
-        for (let i in server.streams) {
-
-            let stream = server.streams[i];
-            let folderState =   streamsFolder + '.' + stream.id;
-
+        await this.setStateAsync("rawJson", { val: JSON.stringify(jsonData), ack: true });
+        const baseFolder = "ServerStatus";
+        const streamsFolder = baseFolder + ".Streams";
+        const serverFolder = baseFolder + ".Server";
+        const groupsFolder = baseFolder + ".Groups";
+        const server = jsonData.result.server;
+        //streams
+        for (const i in server.streams) {
+            const stream = server.streams[i];
+            const folderState = streamsFolder + "." + stream.id;
             await this.setObjectNotExistsAsync(folderState, {
                 type: "state",
                 common: {
@@ -240,10 +251,8 @@ class Snapcast extends utils.Adapter {
                 },
                 native: {},
             });
-
             await this.setStateAsync(folderState, { val: stream.uri.raw, ack: true });
-
-            let statusState = folderState + ".status";
+            const statusState = folderState + ".status";
             await this.setObjectNotExistsAsync(statusState, {
                 type: "state",
                 common: {
@@ -256,12 +265,10 @@ class Snapcast extends utils.Adapter {
                 native: {},
             });
             await this.setStateAsync(statusState, { val: stream.status, ack: true });
-        }// streams loop end
-
+        } // streams loop end
         //server and snapserver
-
         // server.host.arch
-		let serverArchState = serverFolder +'.host.arch';
+        const serverArchState = serverFolder + ".host.arch";
         await this.setObjectNotExistsAsync(serverArchState, {
             type: "state",
             common: {
@@ -274,9 +281,8 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverArchState, { val: server.server.host.arch, ack: true });
-
-		// server.host.ip
-        let serverIpState = serverFolder +'.host.ip';
+        // server.host.ip
+        const serverIpState = serverFolder + ".host.ip";
         await this.setObjectNotExistsAsync(serverIpState, {
             type: "state",
             common: {
@@ -289,9 +295,8 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverIpState, { val: server.server.host.ip, ack: true });
-
-		// server.host.mac 
-        let serverMacState = serverFolder +'.host.mac';
+        // server.host.mac
+        const serverMacState = serverFolder + ".host.mac";
         await this.setObjectNotExistsAsync(serverMacState, {
             type: "state",
             common: {
@@ -304,9 +309,8 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverMacState, { val: server.server.host.mac, ack: true });
-
-		// server.host.name
-        let serverClientnameState = serverFolder +'.host.name'; 
+        // server.host.name
+        const serverClientnameState = serverFolder + ".host.name";
         await this.setObjectNotExistsAsync(serverClientnameState, {
             type: "state",
             common: {
@@ -319,9 +323,8 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverClientnameState, { val: server.server.host.name, ack: true });
-        
-		// server.host.os
-        let serverOsState = serverFolder +'.host.os'; 
+        // server.host.os
+        const serverOsState = serverFolder + ".host.os";
         await this.setObjectNotExistsAsync(serverOsState, {
             type: "state",
             common: {
@@ -334,9 +337,8 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverOsState, { val: server.server.host.os, ack: true });
-        
-		// snapserver.controlProtocolVersion
-        let serverSnapserverControlProtocolVersionState = serverFolder +'.snapserver.controlProtocolVersion'; 
+        // snapserver.controlProtocolVersion
+        const serverSnapserverControlProtocolVersionState = serverFolder + ".snapserver.controlProtocolVersion";
         await this.setObjectNotExistsAsync(serverSnapserverControlProtocolVersionState, {
             type: "state",
             common: {
@@ -349,9 +351,8 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverSnapserverControlProtocolVersionState, { val: server.server.snapserver.controlProtocolVersion, ack: true });
-
-		// snapserver.name
-        let serverSnapserverNameState = serverFolder +'.snapserver.name'; 
+        // snapserver.name
+        const serverSnapserverNameState = serverFolder + ".snapserver.name";
         await this.setObjectNotExistsAsync(serverSnapserverNameState, {
             type: "state",
             common: {
@@ -364,9 +365,8 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverSnapserverNameState, { val: server.server.snapserver.name, ack: true });
-
-		// snapserver.protocolVersion
-        let serverSnapserverProtocolVersionState = serverFolder +'.snapserver.protocolVersion'; 
+        // snapserver.protocolVersion
+        const serverSnapserverProtocolVersionState = serverFolder + ".snapserver.protocolVersion";
         await this.setObjectNotExistsAsync(serverSnapserverProtocolVersionState, {
             type: "state",
             common: {
@@ -379,9 +379,8 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverSnapserverProtocolVersionState, { val: server.server.snapserver.protocolVersion, ack: true });
-
-		// snapserver.version
-        let serverSnapserverVersionState = serverFolder +'.snapserver.version'; 
+        // snapserver.version
+        const serverSnapserverVersionState = serverFolder + ".snapserver.version";
         await this.setObjectNotExistsAsync(serverSnapserverVersionState, {
             type: "state",
             common: {
@@ -394,14 +393,11 @@ class Snapcast extends utils.Adapter {
             native: {},
         });
         await this.setStateAsync(serverSnapserverVersionState, { val: server.server.snapserver.version, ack: true });
-
-        
-        for (let i in server.groups) { 
-            let group = server.groups[i];
-            let groupState = groupsFolder + '.Group' + i;
-
+        for (const i in server.groups) {
+            const group = server.groups[i];
+            const groupState = groupsFolder + ".Group" + i;
             // groups[i].id
-            let groupIdState = groupState +'.groupid'; 
+            const groupIdState = groupState + ".groupid";
             await this.setObjectNotExistsAsync(groupIdState, {
                 type: "state",
                 common: {
@@ -414,9 +410,8 @@ class Snapcast extends utils.Adapter {
                 native: {},
             });
             await this.setStateAsync(groupIdState, { val: group.id, ack: true });
-            
             // groups[i].muted
-            let groupMutedState = groupState +'.muted'; 
+            const groupMutedState = groupState + ".muted";
             await this.setObjectNotExistsAsync(groupMutedState, {
                 type: "state",
                 common: {
@@ -429,9 +424,8 @@ class Snapcast extends utils.Adapter {
                 native: {},
             });
             await this.setStateAsync(groupMutedState, { val: group.muted, ack: true });
-
             // groups[i].name
-            let groupNameState = groupState +'.name'; 
+            const groupNameState = groupState + ".name";
             await this.setObjectNotExistsAsync(groupNameState, {
                 type: "state",
                 common: {
@@ -444,9 +438,8 @@ class Snapcast extends utils.Adapter {
                 native: {},
             });
             await this.setStateAsync(groupNameState, { val: group.name, ack: true });
-
             // groups[i].stream_id
-            let groupStreamIdState = groupState +'.stream_id'; 
+            const groupStreamIdState = groupState + ".stream_id";
             await this.setObjectNotExistsAsync(groupStreamIdState, {
                 type: "state",
                 common: {
@@ -459,10 +452,9 @@ class Snapcast extends utils.Adapter {
                 native: {},
             });
             await this.setStateAsync(groupStreamIdState, { val: group.stream_id, ack: true });
-            
-            for (let j in group.clients) {                 
-                let client = server.groups[i].clients[j];        
-                let clientState = groupState +'.Client' + j;
+            for (const j in group.clients) {
+                const client = server.groups[i].clients[j];
+                const clientState = groupState + ".Client" + j;
                 // groups[i].clients[j].Client
                 await this.setObjectNotExistsAsync(clientState, {
                     type: "state",
@@ -476,9 +468,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 //await this.setStateAsync(groupStreamIdState, { val: group.stream_id, ack: true });
-                
                 // groups[i].clients[j].Client.clientid
-                let clientIdState = clientState +'.clientid';
+                const clientIdState = clientState + ".clientid";
                 await this.setObjectNotExistsAsync(clientIdState, {
                     type: "state",
                     common: {
@@ -491,9 +482,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientIdState, { val: client.clientid, ack: true });
-
                 // groups[i].clients[j].Client.connected
-                let clientConnectedState = clientState +'.connected';
+                const clientConnectedState = clientState + ".connected";
                 await this.setObjectNotExistsAsync(clientConnectedState, {
                     type: "state",
                     common: {
@@ -506,9 +496,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientConnectedState, { val: client.connected, ack: true });
-
                 // groups[i].clients[j].Client.client_count_nbr
-                let clientCountNumberState = clientState +'.client_count_nbr';
+                const clientCountNumberState = clientState + ".client_count_nbr";
                 await this.setObjectNotExistsAsync(clientCountNumberState, {
                     type: "state",
                     common: {
@@ -521,15 +510,11 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientCountNumberState, { val: client.client_count_nbr, ack: true });
-                
-
                 //client host config
-
-                let host = client.host;
-                let clientHostState = clientState +'.host';
-
+                const host = client.host;
+                const clientHostState = clientState + ".host";
                 // groups[i].clients[j].Client.host.arch
-                let clientHostArchState = clientHostState +'.arch';
+                const clientHostArchState = clientHostState + ".arch";
                 await this.setObjectNotExistsAsync(clientHostArchState, {
                     type: "state",
                     common: {
@@ -542,9 +527,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientHostArchState, { val: host.arch, ack: true });
-
                 // groups[i].clients[j].Client.host.ip
-                let clientHostIpState = clientHostState +'.ip';
+                const clientHostIpState = clientHostState + ".ip";
                 await this.setObjectNotExistsAsync(clientHostIpState, {
                     type: "state",
                     common: {
@@ -557,9 +541,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientHostIpState, { val: host.ip, ack: true });
-
                 // groups[i].clients[j].Client.host.ip
-                let clientHostMacState = clientHostState +'.mac';
+                const clientHostMacState = clientHostState + ".mac";
                 await this.setObjectNotExistsAsync(clientHostMacState, {
                     type: "state",
                     common: {
@@ -572,9 +555,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientHostMacState, { val: host.mac, ack: true });
-
                 // groups[i].clients[j].Client.host.ip
-                let clientHostNameState = clientHostState +'.name';
+                const clientHostNameState = clientHostState + ".name";
                 await this.setObjectNotExistsAsync(clientHostNameState, {
                     type: "state",
                     common: {
@@ -587,9 +569,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientHostNameState, { val: host.name, ack: true });
-
                 // groups[i].clients[j].Client.host.os
-                let clientHostOsState = clientHostState +'.os';
+                const clientHostOsState = clientHostState + ".os";
                 await this.setObjectNotExistsAsync(clientHostOsState, {
                     type: "state",
                     common: {
@@ -602,15 +583,11 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientHostOsState, { val: host.os, ack: true });
-
-
                 //client last seen
-
-                let lastSeen = client.lastSeen;
-                let clientLastSeenState = clientState +'.lastSeen';
-
+                const lastSeen = client.lastSeen;
+                const clientLastSeenState = clientState + ".lastSeen";
                 // groups[i].clients[j].Client.lastSeen.sec
-                let clientLastSeenSecState = clientLastSeenState +'.sec';
+                const clientLastSeenSecState = clientLastSeenState + ".sec";
                 await this.setObjectNotExistsAsync(clientLastSeenSecState, {
                     type: "state",
                     common: {
@@ -623,9 +600,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientLastSeenSecState, { val: lastSeen.sec, ack: true });
-
                 // groups[i].clients[j].Client.lastSeen.usec
-                let clientLastSeenUsecState = clientLastSeenState +'.usec';
+                const clientLastSeenUsecState = clientLastSeenState + ".usec";
                 await this.setObjectNotExistsAsync(clientLastSeenUsecState, {
                     type: "state",
                     common: {
@@ -638,14 +614,11 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientLastSeenUsecState, { val: lastSeen.usec, ack: true });
-
                 //client snapclient
-
-                let snapclient = client.snapclient;
-                let clientSnapclientState = clientState +'.snapclient';
-
+                const snapclient = client.snapclient;
+                const clientSnapclientState = clientState + ".snapclient";
                 // groups[i].clients[j].Client.snapclient.name
-                let clientSnapclientNameState = clientSnapclientState +'.name';
+                const clientSnapclientNameState = clientSnapclientState + ".name";
                 await this.setObjectNotExistsAsync(clientSnapclientNameState, {
                     type: "state",
                     common: {
@@ -658,9 +631,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientSnapclientNameState, { val: snapclient.name, ack: true });
-
                 // groups[i].clients[j].Client.snapclient.name
-                let clientSnapclientProtocolVersionState = clientSnapclientState +'.protocolVersion';
+                const clientSnapclientProtocolVersionState = clientSnapclientState + ".protocolVersion";
                 await this.setObjectNotExistsAsync(clientSnapclientProtocolVersionState, {
                     type: "state",
                     common: {
@@ -673,9 +645,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientSnapclientProtocolVersionState, { val: snapclient.protocolVersion, ack: true });
-                
                 // groups[i].clients[j].Client.snapclient.version
-                let clientSnapclientVersionState = clientSnapclientState +'.version';
+                const clientSnapclientVersionState = clientSnapclientState + ".version";
                 await this.setObjectNotExistsAsync(clientSnapclientVersionState, {
                     type: "state",
                     common: {
@@ -688,14 +659,11 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientSnapclientVersionState, { val: snapclient.version, ack: true });
-                
                 //client config
-
-                let config = client.config;
-                let clientConfigState = clientState +'.config';
-
+                const config = client.config;
+                const clientConfigState = clientState + ".config";
                 // groups[i].clients[j].Client.config.instance
-                let clientConfigInstanceState = clientConfigState +'.instance';
+                const clientConfigInstanceState = clientConfigState + ".instance";
                 await this.setObjectNotExistsAsync(clientConfigInstanceState, {
                     type: "state",
                     common: {
@@ -708,9 +676,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientConfigInstanceState, { val: config.instance, ack: true });
-                
                 // groups[i].clients[j].Client.config.latency
-                let clientConfigLatencyState = clientConfigState +'.latency';
+                const clientConfigLatencyState = clientConfigState + ".latency";
                 await this.setObjectNotExistsAsync(clientConfigLatencyState, {
                     type: "state",
                     common: {
@@ -723,9 +690,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientConfigLatencyState, { val: config.latency, ack: true });
-
                 // groups[i].clients[j].Client.config.name
-                let clientConfigNameState = clientConfigState +'.name';
+                const clientConfigNameState = clientConfigState + ".name";
                 await this.setObjectNotExistsAsync(clientConfigNameState, {
                     type: "state",
                     common: {
@@ -738,12 +704,10 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientConfigNameState, { val: config.name, ack: true });
-
-                let volume = config.volume;
-                let clientConfigVolumeState = clientConfigState +'.volume';
-                
+                const volume = config.volume;
+                const clientConfigVolumeState = clientConfigState + ".volume";
                 // groups[i].clients[j].Client.config.volume.muted
-                let clientConfigVolumeMutedState = clientConfigVolumeState +'.muted';
+                const clientConfigVolumeMutedState = clientConfigVolumeState + ".muted";
                 await this.setObjectNotExistsAsync(clientConfigVolumeMutedState, {
                     type: "state",
                     common: {
@@ -756,9 +720,8 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientConfigVolumeMutedState, { val: volume.muted, ack: true });
-
                 // groups[i].clients[j].Client.config.volume.percent
-                let clientConfigVolumePercentState = clientConfigVolumeState +'.percent';
+                const clientConfigVolumePercentState = clientConfigVolumeState + ".percent";
                 await this.setObjectNotExistsAsync(clientConfigVolumePercentState, {
                     type: "state",
                     common: {
@@ -771,15 +734,10 @@ class Snapcast extends utils.Adapter {
                     native: {},
                 });
                 await this.setStateAsync(clientConfigVolumePercentState, { val: volume.percent, ack: true });
- 
-            }//end group.clients loop
-        }//end groups loop
-        
-    }// end storeServerGetStatus function
+            } //end group.clients loop
+        } //end groups loop
+    } // end storeServerGetStatus function
 }
-
-
-
 if (module.parent) {
     // Export the constructor in compact mode
     module.exports = (options) => new Snapcast(options);
