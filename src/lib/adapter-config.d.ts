@@ -6,6 +6,7 @@ declare global {
 		interface AdapterConfig {
 			host: string;
 			port: string;
+			media_path: string;
 		}
 	}
 }

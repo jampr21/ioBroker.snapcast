@@ -29,7 +29,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // you need to create an adapter
 const utils = __importStar(require("@iobroker/adapter-core"));
 // Load your modules here, e.g.:
-// import * as fs from "fs";
+const fs = __importStar(require("fs"));
+//import { readdirSync, statSync } from "fs";
+//import { join } from "path";
 const ws_1 = __importDefault(require("ws"));
 class Snapcast extends utils.Adapter {
     constructor(options = {}) {
@@ -37,6 +39,11 @@ class Snapcast extends utils.Adapter {
             ...options,
             name: "snapcast",
         });
+        this.server = new Server();
+        //this.baseUrl = "ws://" + this.config.host + ":" + this.config.port +"/jsonrpc";
+        this.baseUrl = "ws://";
+        this.msg_id = 0;
+        this.status_req_id = -1;
         this.on("ready", this.onReady.bind(this));
         this.on("stateChange", this.onStateChange.bind(this));
         // this.on("objectChange", this.onObjectChange.bind(this));
@@ -96,34 +103,74 @@ class Snapcast extends utils.Adapter {
             "jsonrpc": "2.0",
             "method": "Server.GetRPCVersion"
         };
+        await this.setObjectNotExistsAsync("currentPath", {
+            type: "state",
+            common: {
+                name: "Path",
+                type: "string",
+                role: "string",
+                read: true,
+                write: true,
+            },
+            native: {},
+        });
+        await this.setObjectNotExistsAsync("currentPathList", {
+            type: "state",
+            common: {
+                name: "Path Content",
+                type: "string",
+                role: "string",
+                read: true,
+                write: true,
+            },
+            native: {},
+        });
         const ServerGetStatus_request = { "id": 1, "jsonrpc": "2.0", "method": "Server.GetStatus" };
+        function getFolders(path) {
+            const result = [];
+            const files = fs.readdirSync(path);
+            for (let i = 0; i < files.length; i++) {
+                const filePath = path + "/" + files[i];
+                if (fs.statSync(filePath).isDirectory()) {
+                    result.push({ "path": path, "filename": files[i], "type": "directory" });
+                }
+                else {
+                    result.push({ "path": path, "filename": files[i], "type": "file/link" });
+                }
+            }
+            return result;
+        }
+        await this.setStateAsync("currentPathList", { val: JSON.stringify(getFolders(this.config.media_path)), ack: true });
+        await this.setStateAsync("currentPath", { val: this.config.media_path, ack: true });
+        this.log.info(this.config.media_path);
         // Reset the connection indicator during startup
         //thanks to UncleSam, stolen from loxone adapter
         this.setState("info.connection", false, true);
         //open websocket to snapcast server host:port
-        const client = new ws_1.default("ws://" + this.config.host + ":" + this.config.port + "/jsonrpc");
+        this.connection = new ws_1.default("ws://" + this.config.host + ":" + this.config.port + "/jsonrpc");
         //catch error during establishing connection
-        client.on("error", (error) => {
+        this.connection.on("error", (error) => {
             this.log.error("Socket connection failed. Reason: " + error);
             this.setState("info.connection", false, true);
         });
-        client.on("open", () => {
-            client.send(JSON.stringify(++ServerGetRPCVersion_request.id && ServerGetRPCVersion_request));
+        this.connection.on("open", () => {
+            this.connection.send(JSON.stringify(++ServerGetRPCVersion_request.id && ServerGetRPCVersion_request));
             this.log.info("connection opened");
             this.setState("info.connection", true, true);
             //get current server status (includes all clients, groups and streams)
-            client.send(JSON.stringify(++ServerGetStatus_request.id && ServerGetStatus_request));
+            this.connection.send(JSON.stringify(++ServerGetStatus_request.id && ServerGetStatus_request));
         });
         // alles, was reinkommt
-        client.on("message", (data) => {
+        this.connection.on("message", (data) => {
             const jsonData = JSON.parse(data);
             //check if it is a response of an event, that was requested
-            if (typeof jsonData.id !== "undefined") {
+            const is_response = (jsonData.id != undefined);
+            this.log.info("Received " + (is_response ? "response" : "notification") + ", json: " + data);
+            if (is_response) {
                 //response
                 switch (jsonData.id) {
                     //Server.GetStatus
                     case 1: {
-                        this.log.info("id" + JSON.parse(data).id + "; message " + data);
                         break;
                     }
                     default: {
@@ -136,11 +183,17 @@ class Snapcast extends utils.Adapter {
                 //notification
                 switch (jsonData.method) {
                     case "Client.OnVolumeChanged": {
-                        this.log.info("method " + jsonData.method + " -- " + data);
                         break;
                     }
+                    case "Client.OnLatencyChanged":
+                    case "Client.OnNameChanged":
+                    case "Client.OnConnect":
+                    case "Client.OnDisconnect":
+                    case "Group.OnMute":
+                    case "Group.OnStreamChanged":
+                    case "Stream.OnUpdate":
+                    case "Server.OnUpdate":
                     default: {
-                        this.log.info("id" + JSON.parse(data).id + "; message " + data);
                         break;
                     }
                 }
@@ -737,6 +790,119 @@ class Snapcast extends utils.Adapter {
             } //end group.clients loop
         } //end groups loop
     } // end storeServerGetStatus function
+}
+class Host {
+    constructor(json) {
+        this.arch = "";
+        this.ip = "";
+        this.mac = "";
+        this.name = "";
+        this.os = "";
+        this.fromJson(json);
+    }
+    fromJson(json) {
+        this.arch = json.arch;
+        this.ip = json.ip;
+        this.mac = json.mac;
+        this.name = json.name;
+        this.os = json.os;
+    }
+}
+class Client {
+    constructor(json) {
+        this.id = "";
+        this.connected = false;
+        this.fromJson(json);
+    }
+    fromJson(json) {
+        this.id = json.id;
+        this.host = new Host(json.host);
+        const jsnapclient = json.snapclient;
+        this.snapclient = { name: jsnapclient.name, protocolVersion: jsnapclient.protocolVersion, version: jsnapclient.version };
+        const jconfig = json.config;
+        this.config = { instance: jconfig.instance, latency: jconfig.latency, name: jconfig.name, volume: { muted: jconfig.volume.muted, percent: jconfig.volume.percent } };
+        this.lastSeen = { sec: json.lastSeen.sec, usec: json.lastSeen.usec };
+        this.connected = Boolean(json.connected);
+    }
+}
+class Group {
+    constructor(json) {
+        this.name = "";
+        this.id = "";
+        this.stream_id = "";
+        this.muted = false;
+        this.clients = [];
+        this.fromJson(json);
+    }
+    fromJson(json) {
+        this.name = json.name;
+        this.id = json.id;
+        this.stream_id = json.stream_id;
+        this.muted = Boolean(json.muted);
+        for (const client of json.clients)
+            this.clients.push(new Client(client));
+    }
+    getClient(id) {
+        for (const client of this.clients) {
+            if (client.id == id)
+                return client;
+        }
+        return null;
+    }
+}
+class Stream {
+    constructor(json) {
+        this.id = "";
+        this.status = "";
+        this.fromJson(json);
+    }
+    fromJson(json) {
+        this.id = json.id;
+        this.status = json.status;
+        const juri = json.uri;
+        this.uri = { raw: juri.raw, scheme: juri.scheme, host: juri.host, path: juri.path, fragment: juri.fragment, query: juri.query };
+    }
+}
+class Server {
+    constructor(json) {
+        this.groups = [];
+        this.streams = [];
+        if (json)
+            this.fromJson(json);
+    }
+    fromJson(json) {
+        this.groups = [];
+        for (const jgroup of json.groups)
+            this.groups.push(new Group(jgroup));
+        const jsnapserver = json.server.snapserver;
+        this.server = { host: new Host(json.server.host), snapserver: { controlProtocolVersion: jsnapserver.controlProtocolVersion, name: jsnapserver.name, protocolVersion: jsnapserver.protocolVersion, version: jsnapserver.version } };
+        this.streams = [];
+        for (const jstream of json.streams) {
+            this.streams.push(new Stream(jstream));
+        }
+    }
+    getClient(id) {
+        for (const group of this.groups) {
+            const client = group.getClient(id);
+            if (client)
+                return client;
+        }
+        return null;
+    }
+    getGroup(id) {
+        for (const group of this.groups) {
+            if (group.id == id)
+                return group;
+        }
+        return null;
+    }
+    getStream(id) {
+        for (const stream of this.streams) {
+            if (stream.id == id)
+                return stream;
+        }
+        return null;
+    }
 }
 if (module.parent) {
     // Export the constructor in compact mode

@@ -7,7 +7,10 @@
 import * as utils from "@iobroker/adapter-core";
 
 // Load your modules here, e.g.:
-// import * as fs from "fs";
+import * as fs from "fs";
+//import { readdirSync, statSync } from "fs";
+//import { join } from "path";
+
 import connection from "ws";
 
 
@@ -26,7 +29,8 @@ class Snapcast extends utils.Adapter {
 		});
 
 		this.server = new Server();
-		this.baseUrl = "ws://" + this.config.host + ":" + this.config.port +"/jsonrpc";
+		//this.baseUrl = "ws://" + this.config.host + ":" + this.config.port +"/jsonrpc";
+		this.baseUrl = "ws://";
 		this.msg_id = 0;
 		this.status_req_id = -1;
 
@@ -95,7 +99,49 @@ class Snapcast extends utils.Adapter {
 			"method": "Server.GetRPCVersion"
 		};
 
+
+		await this.setObjectNotExistsAsync("currentPath", {
+			type: "state",
+			common: {
+				name: "Path",
+				type: "string",
+				role: "string",
+				read: true,
+				write: true,
+			},
+			native: {},
+		});
+
+		await this.setObjectNotExistsAsync("currentPathList", {
+			type: "state",
+			common: {
+				name: "Path Content",
+				type: "string",
+				role: "string",
+				read: true,
+				write: true,
+			},
+			native: {},
+		});
+
 		const ServerGetStatus_request = { "id": 1, "jsonrpc": "2.0", "method": "Server.GetStatus" };
+
+		function getFolders(path:string): any {
+			const result = [];
+			const files = fs.readdirSync(path);
+			for (let i = 0; i < files.length; i++) {
+				const filePath = path + "/" + files[i];
+				if (fs.statSync(filePath).isDirectory()) {
+					result.push({"path" : path, "filename": files[i],"type" : "directory"});
+				}else{
+					result.push({"path" : path, "filename": files[i], "type" : "file/link"});
+				}
+			}
+			return result;
+		}
+
+		await this.setStateAsync("currentPathList", { val: JSON.stringify(getFolders(this.config.media_path)), ack: true });
+		await this.setStateAsync("currentPath", { val: this.config.media_path, ack: true });
 
 		// Reset the connection indicator during startup
 		//thanks to UncleSam, stolen from loxone adapter
@@ -108,7 +154,7 @@ class Snapcast extends utils.Adapter {
 		this.connection.on("error", (error) => {
 			this.log.error("Socket connection failed. Reason: " + error);
 			this.setState("info.connection", false, true);
-		})
+		});
 
 		this.connection.on("open", () => {
 			this.connection.send(JSON.stringify(++ServerGetRPCVersion_request.id && ServerGetRPCVersion_request));
@@ -253,7 +299,7 @@ class Snapcast extends utils.Adapter {
 	// 	}
 	// }
 
-	async storeServerGetStatus(jsonData:any) {
+	async storeServerGetStatus(jsonData:any): Promise<void> {
 
 
 		await this.setStateAsync("rawJson", { val: JSON.stringify(jsonData), ack: true });
@@ -827,7 +873,7 @@ class Host {
 		this.fromJson(json);
 	}
 
-	fromJson(json: any) {
+	fromJson(json: any):void {
 		this.arch = json.arch;
 		this.ip = json.ip;
 		this.mac = json.mac;
@@ -848,7 +894,7 @@ class Client {
 		this.fromJson(json);
 	}
 
-	fromJson(json: any) {
+	fromJson(json: any):void {
 		this.id = json.id;
 		this.host = new Host(json.host);
 		const jsnapclient = json.snapclient;
@@ -888,7 +934,7 @@ class Group {
 		this.fromJson(json);
 	}
 
-	fromJson(json: any) {
+	fromJson(json: any):void {
 		this.name = json.name;
 		this.id = json.id;
 		this.stream_id = json.stream_id;
@@ -918,7 +964,7 @@ class Stream {
 		this.fromJson(json);
 	}
 
-	fromJson(json: any) {
+	fromJson(json: any):void {
 		this.id = json.id;
 		this.status = json.status;
 		const juri = json.uri;
@@ -944,7 +990,7 @@ class Server {
 			this.fromJson(json);
 	}
 
-	fromJson(json: any) {
+	fromJson(json: any):void {
 		this.groups = []
 		for (const jgroup of json.groups)
 			this.groups.push(new Group(jgroup));
