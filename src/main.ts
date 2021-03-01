@@ -126,21 +126,8 @@ class Snapcast extends utils.Adapter {
 
 		const ServerGetStatus_request = { "id": 1, "jsonrpc": "2.0", "method": "Server.GetStatus" };
 
-		function getFolders(path:string): any {
-			const result = [];
-			const files = fs.readdirSync(path);
-			for (let i = 0; i < files.length; i++) {
-				const filePath = path + "/" + files[i];
-				if (fs.statSync(filePath).isDirectory()) {
-					result.push({"path" : path, "filename": files[i],"type" : "directory"});
-				}else{
-					result.push({"path" : path, "filename": files[i], "type" : "file/link"});
-				}
-			}
-			return result;
-		}
 
-		await this.setStateAsync("currentPathList", { val: JSON.stringify(getFolders(this.config.media_path)), ack: true });
+		await this.setStateAsync("currentPathList", { val: JSON.stringify(this.getFolders(this.config.media_path)), ack: true });
 		await this.setStateAsync("currentPath", { val: this.config.media_path, ack: true });
 
 		// Reset the connection indicator during startup
@@ -209,7 +196,7 @@ class Snapcast extends utils.Adapter {
 		});
 
 		// In order to get state updates, you need to subscribe to them. The following line adds a subscription for our variable we have created above.
-		//FSR        this.subscribeStates("testVariable");
+		this.subscribeStates("currentPath");
 		// You can also add a subscription for multiple states. The following line watches all states starting with "lights."
 		// this.subscribeStates("lights.*");
 		// Or, if you really must, you can also watch all states. Don't do this if you don't need to. Otherwise this will cause a lot of unnecessary load on the system:
@@ -237,6 +224,19 @@ class Snapcast extends utils.Adapter {
         */
 	}
 
+	private getFolders(path:string): any {
+		const result = [];
+		const files = fs.readdirSync(path);
+		for (let i = 0; i < files.length; i++) {
+			const filePath = path + "/" + files[i];
+			if (fs.statSync(filePath).isDirectory()) {
+				result.push({"path" : path, "filename": files[i],"type" : "directory"});
+			}else{
+				result.push({"path" : path, "filename": files[i], "type" : "file/link"});
+			}
+		}
+		return result;
+	}
 	/**
 	 * Is called when adapter shuts down - callback has to be called under any circumstances!
 	 */
@@ -274,8 +274,10 @@ class Snapcast extends utils.Adapter {
 	 */
 	private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
 		if (state) {
+			const value =  `${state.val}`;
 			// The state was changed
 			this.log.info(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
+			this.setState("currentPathList", { val: JSON.stringify(this.getFolders(value)), ack: true });
 		} else {
 			// The state was deleted
 			this.log.info(`state ${id} deleted`);
