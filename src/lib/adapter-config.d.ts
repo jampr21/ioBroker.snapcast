@@ -7,6 +7,7 @@ declare global {
 			host: string;
 			port: string;
 			media_path: string;
+			fifo_path: string;
 		}
 	}
 }

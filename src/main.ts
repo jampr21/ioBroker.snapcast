@@ -9,9 +9,10 @@ import * as utils from "@iobroker/adapter-core";
 // Load your modules here, e.g.:
 import * as fs from "fs";
 //import { readdirSync, statSync } from "fs";
-//import { join } from "path";
+import * as ns_path from "path";
 
 import connection from "ws";
+import * as child from "child_process";
 
 
 class Snapcast extends utils.Adapter {
@@ -21,6 +22,7 @@ class Snapcast extends utils.Adapter {
 	msg_id: number;
 	status_req_id: number;
 	connection!: connection;
+	mplayer: any;
 
 	public constructor(options: Partial<utils.AdapterOptions> = {}) {
 		super({
@@ -126,7 +128,6 @@ class Snapcast extends utils.Adapter {
 
 		const ServerGetStatus_request = { "id": 1, "jsonrpc": "2.0", "method": "Server.GetStatus" };
 
-
 		await this.setStateAsync("currentPathList", { val: JSON.stringify(this.getFolders(this.config.media_path)), ack: true });
 		await this.setStateAsync("currentPath", { val: this.config.media_path, ack: true });
 
@@ -226,22 +227,68 @@ class Snapcast extends utils.Adapter {
 
 	private getFolders(path:string): any {
 		const result = [];
-		const files = fs.readdirSync(path);
-		for (let i = 0; i < files.length; i++) {
-			const filePath = path + "/" + files[i];
-			if (fs.statSync(filePath).isDirectory()) {
-				result.push({"path" : path, "filename": files[i],"type" : "directory"});
-			}else{
-				result.push({"path" : path, "filename": files[i], "type" : "file/link"});
+		let files: string[] = [];
+
+		if (ns_path.extname(path).substr(1).localeCompare("mp3")){
+
+			try{
+			files = fs.readdirSync(path);
+			} catch(err){
+				this.log.error("no such file or directory: "+ path);
 			}
+			// create directory/file list
+			for (let i = 0; i < files.length; i++) {
+				const filePath = path + "/" + files[i];
+				if (fs.statSync(filePath).isDirectory()) {
+					result.push({"path" : path, "filename": files[i],"type" : "directory"});
+				}else{
+					result.push({"path" : path, "filename": files[i], "type" : ns_path.extname(files[i]).substr(1)});
+				}
+			}
+		}else{
+
+			this.stopPlayer();
+
+			//play single file
+			this.log.info(`play ${path}`);
+			//https://nodejs.org/docs/v8.1.4/api/child_process.html#child_process_child_process_exec_command_options_callback
+
+			this.mplayer = child.spawn("mplayer", ["-novideo","-channels","2","-srate", "48000", "-af", "format=s16le", "-ao", `pcm:file=${this.config.fifo_path}`, `${path}`]);
+
+			//this.mplayer.stdout.on("data", (data: any) => {
+			//	this.log.info(`stdout: ${data}`);
+			//});
+
+			this.mplayer.stderr.on("data", (data: any) => {
+				this.log.info(`stderr: ${data}`);
+			});
+
+			this.mplayer.on("close", (code: any) => {
+				this.log.info(`child process exited with code ${code}`);
+			});
+			result.push({"path" : path, "filename": "", "type" : ns_path.extname(path).substr(1)});
+
 		}
+
 		return result;
 	}
+
+	private stopPlayer():void{
+		try {
+			this.mplayer.kill("SIGHUP");
+		}catch(err){
+			this.log.info("mplayer: no such process to kill ");
+		}
+	}
+	//TODO: used to push whole dir to playlist
+	//find "$(pwd)" -type f -name "*.mp3" |sort -n | mplayer -novideo -channels 2 -srate 48000 -af format=s16le -ao pcm:file=/opt/iobroker/snapfifo_iobroker -playlist /dev/fd/3 3<&0 0</dev/tty
+
 	/**
 	 * Is called when adapter shuts down - callback has to be called under any circumstances!
 	 */
 	private onUnload(callback: () => void): void {
 		try {
+			this.stopPlayer();
 			// Here you must clear all timeouts or intervals that may still be active
 			// clearTimeout(timeout1);
 			// clearTimeout(timeout2);
@@ -274,7 +321,12 @@ class Snapcast extends utils.Adapter {
 	 */
 	private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
 		if (state) {
-			const value =  `${state.val}`;
+			let value =  `${state.val}`;
+
+			if (value.indexOf(this.config.media_path) == -1){
+				value = this.config.media_path;
+				this.setState("currentPath", { val: value, ack: true });
+			}
 			// The state was changed
 			this.log.info(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
 			this.setState("currentPathList", { val: JSON.stringify(this.getFolders(value)), ack: true });
