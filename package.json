@@ -6,7 +6,7 @@
     "name": "Jampr",
     "email": "jampr@online.de"
   },
-  "homepage": "https://github.com/Jampr/ioBroker.snapcast",
+  "homepage": "https://github.com/jampr21/ioBroker.snapcast",
   "license": "MIT",
   "keywords": [
     "multiroom",
@@ -14,10 +14,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Jampr/ioBroker.snapcast"
+    "url": "https://github.com/jampr21/ioBroker.snapcast.git"
   },
   "dependencies": {
     "@iobroker/adapter-core": "^2.4.0",
+    "@suldashi/lame": "^1.2.5",
     "@types/ws": "^7.4.0",
     "ws": "^7.4.2"
   },
@@ -31,7 +32,7 @@
     "@types/proxyquire": "^1.3.28",
     "@types/sinon": "^9.0.10",
     "@types/sinon-chai": "^3.2.5",
-    "@types/ws":"^7.4.0",
+    "@types/ws": "^7.4.0",
     "@typescript-eslint/eslint-plugin": "^4.13.0",
     "@typescript-eslint/parser": "^4.13.0",
     "axios": "^0.21.1",
@@ -64,7 +65,7 @@
     "lint": "eslint --ext .ts src/"
   },
   "bugs": {
-    "url": "https://github.com/Jampr/ioBroker.snapcast/issues"
+    "url": "https://github.com/jampr21/ioBroker.snapcast/issues"
   },
   "readmeFilename": "README.md"
 }

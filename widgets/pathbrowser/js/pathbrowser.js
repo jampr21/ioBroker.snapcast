@@ -28,13 +28,13 @@ $.extend(
 	}
 );
 
-// this code can be placed directly in template.html
-vis.binds["template"] = {
+// this code can be placed directly in pathbrowser.html
+vis.binds["pathbrowser"] = {
 	version: "0.0.2",
 	showVersion: function () {
-		if (vis.binds["template"].version) {
-			console.log("Version template: " + vis.binds["template"].version);
-			vis.binds["template"].version = null;
+		if (vis.binds["pathbrowser"].version) {
+			console.log("Version pathbrowser: " + vis.binds["pathbrowser"].version);
+			vis.binds["pathbrowser"].version = null;
 		}
 	},
 	createWidget: function (widgetID, view, data, style) {
@@ -42,23 +42,23 @@ vis.binds["template"] = {
 		// if nothing found => wait
 		if (!$div.length) {
 			return setTimeout(function () {
-				vis.binds["template"].createWidget(widgetID, view, data, style);
+				vis.binds["pathbrowser"].createWidget(widgetID, view, data, style);
 			}, 100);
 		}
 
-		var text = "HALLO";
+		var text = "HALLO";/*
 		text += "OID: " + data.oid + "</div><br>";
-		text += 'OID value: <span class="template-value">' + vis.states[data.oid + ".val"] + "</span><br>";
+		text += 'OID value: <span class="pathbrowser-value">' + vis.states[data.oid + ".val"] + "</span><br>";
 		text += 'Color: <span style="color: ' + data.myColor + '">' + data.myColor + "</span><br>";
 		text += "extraAttr: " + data.extraAttr + "<br>";
 		text += "Browser instance: " + vis.instance + "<br>";
 		text += 'htmlText: <textarea readonly style="width:100%">' + (data.htmlText || "") + "</textarea><br>";
-
+*/
 		$("#" + widgetID).html(text);
 
 		// subscribe on updates of value
 		function onChange(e, newVal, oldVal) {
-			$div.find(".template-value").html(newVal);
+			$div.find(".pathbrowser-value").html(newVal);
 		}
 		if (data.oid) {
 			vis.states.bind(data.oid + ".val", onChange);
@@ -70,4 +70,4 @@ vis.binds["template"] = {
 	}
 };
 
-vis.binds["template"].showVersion();
+vis.binds["pathbrowser"].showVersion();

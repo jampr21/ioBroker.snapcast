@@ -7,6 +7,8 @@ declare global {
 			host: string;
 			port: string;
 			media_path: string;
+			tcp_socket_host: string;
+			tcp_socket_port: string;
 		}
 	}
 }

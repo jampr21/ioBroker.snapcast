@@ -53,8 +53,8 @@
 		"main": "build/main.js",
 		"icon": "snapcast.png",
 		"enabled": true,
-		"extIcon": "https://raw.githubusercontent.com/Jampr/ioBroker.snapcast/master/admin/snapcast.png",
-		"readme": "https://github.com/Jampr/ioBroker.snapcast/blob/master/README.md",
+		"extIcon": "https://github.com/jampr21/ioBroker.snapcast/blob/main/admin/snapcast.png?raw=true",
+		"readme": "https://raw.githubusercontent.com/jampr21/ioBroker.snapcast/main/README.md",
 		"loglevel": "info",
 		"mode": "daemon",
 		"type": "multimedia",
@@ -71,7 +71,9 @@
 	"native": {
 		"host": "192.168.1.3",
 		"port": "1780",
-		"media_path": "/tmp"
+		"media_path": "/opt/iobroker",
+		"tcp_socket_host": "192.168.1.3",
+		"tcp_socket_": "3333"
 	},
 	"objects": [],
 	"instanceObjects": []

@@ -80,19 +80,41 @@
 
                         <div class="input-field col s12 m6 l4">
                                 <input id="host" type="text" size="30" class="value" />
-                                <label class="translate" for="host">host</label>
+                                <label class="translate" for="host">snapcast host</label>
                         </div>
                         <div class="input-field col s12 m6 l4">
                                 <input id="port" type="text" size="30" class="value" />
-                                <label class="translate" for="port">Port</label>
+                                <label class="translate" for="port">HTTP RPC Port</label>
                         </div>
-                        <div class="input-field col s12 m6 l4">
-                                <input id="media_path" type="text" size="30" class="value" />
-                                <label class="translate" for="port">Mediapath</label>
-                        </div>
-
 		</div>
 
+		<a href="https://github.com/badaix/snapcast/blob/master/doc/configuration.md#tcp-server" target="_blank">Snapcast Konfiguration des tcp Sockets</a><br> Beispiel: stream = tcp://192.168.1.5:1234?name=iobroker_tcp_in
+
+		<br>
+		<br>
+		<div class="row">
+
+			<div class="input-field col s12 m6 l4">
+					<input id="tcp_socket_host" type="text" size="30" class="value" />
+					<label class="translate" for="tcp_socket_host">tcp socket stream source host</label>
+			</div>
+			<div class="input-field col s12 m6 l4">
+					<input id="tcp_socket_port" type="text" size="30" class="value" />
+					<label class="translate" for="tcp_socket_port">tcp socket stream source Port</label>
+			</div>
+<div>
+
+
+<div class="row">
+	<div class="input-field col s12 m6 l4">
+			<input id="media_path" type="text" size="30" class="value" />
+			<label class="translate" for="media_path">Mediapath</label>
+	</div>
+	<div class="input-field col s12 m6 l4">
+			&nbsp;
+			<label class="translate" for="fifo_path">&nbsp;</label>
+	</div>
+</div>
 	</div>
 
 </body>

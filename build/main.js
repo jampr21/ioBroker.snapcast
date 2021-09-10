@@ -30,8 +30,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const utils = __importStar(require("@iobroker/adapter-core"));
 // Load your modules here, e.g.:
 const fs = __importStar(require("fs"));
-//import { readdirSync, statSync } from "fs";
-//import { join } from "path";
+const net = __importStar(require("net"));
+const ns_path = __importStar(require("path"));
 const ws_1 = __importDefault(require("ws"));
 class Snapcast extends utils.Adapter {
     constructor(options = {}) {
@@ -44,6 +44,8 @@ class Snapcast extends utils.Adapter {
         this.baseUrl = "ws://";
         this.msg_id = 0;
         this.status_req_id = -1;
+        this.tcp_host = "";
+        this.tcp_port = 0;
         this.on("ready", this.onReady.bind(this));
         this.on("stateChange", this.onStateChange.bind(this));
         // this.on("objectChange", this.onObjectChange.bind(this));
@@ -60,6 +62,8 @@ class Snapcast extends utils.Adapter {
         // eslint-disable-next-line @typescript-eslint/indent
         this.log.info("config host: " + this.config.host);
         this.log.info("config port: " + this.config.port);
+        this.tcp_host = this.config.tcp_socket_host;
+        this.tcp_port = Number(this.config.tcp_socket_port);
         /*
         For every state in the system there has to be also an object of type state
         Here a simple template for a boolean variable named "testVariable"
@@ -211,18 +215,41 @@ class Snapcast extends utils.Adapter {
     }
     getFolders(path) {
         const result = [];
-        const files = fs.readdirSync(path);
-        for (let i = 0; i < files.length; i++) {
-            const filePath = path + "/" + files[i];
-            if (fs.statSync(filePath).isDirectory()) {
-                result.push({ "path": path, "filename": files[i], "type": "directory" });
+        let files = [];
+        if (ns_path.extname(path).substr(1).localeCompare("mp3")) {
+            try {
+                files = fs.readdirSync(path);
             }
-            else {
-                result.push({ "path": path, "filename": files[i], "type": "file/link" });
+            catch (err) {
+                this.log.error("no such file or directory: " + path);
             }
+            // create directory/file list
+            for (let i = 0; i < files.length; i++) {
+                const filePath = path + "/" + files[i];
+                if (fs.statSync(filePath).isDirectory()) {
+                    result.push({ "path": path, "filename": files[i], "type": "directory" });
+                }
+                else {
+                    result.push({ "path": path, "filename": files[i], "type": ns_path.extname(files[i]).substr(1) });
+                }
+            }
+        }
+        else {
+            //play single file
+            this.log.info(`play ${path}`);
+            //https://nodejs.org/docs/v8.1.4/api/child_process.html#child_process_child_process_exec_command_options_callback
+            var lame = require('@suldashi/lame');
+            var client = new net.Socket();
+            client.connect(this.tcp_port, this.tcp_host);
+            fs.createReadStream(path)
+                .pipe(new lame.Decoder)
+                .pipe(client)
+                .close;
+            result.push({ "path": path, "filename": "", "type": ns_path.extname(path).substr(1) });
         }
         return result;
     }
+    //find "$(pwd)" -type f -name "*.mp3" |sort -n | mplayer -novideo -channels 2 -srate 48000 -af format=s16le -ao pcm:file=/opt/iobroker/snapfifo_iobroker -playlist /dev/fd/3 3<&0 0</dev/tty
     /**
      * Is called when adapter shuts down - callback has to be called under any circumstances!
      */
@@ -258,7 +285,11 @@ class Snapcast extends utils.Adapter {
      */
     onStateChange(id, state) {
         if (state) {
-            const value = `${state.val}`;
+            let value = `${state.val}`;
+            if (value.indexOf(this.config.media_path) == -1) {
+                value = this.config.media_path;
+                this.setState("currentPath", { val: value, ack: true });
+            }
             // The state was changed
             this.log.info(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
             this.setState("currentPathList", { val: JSON.stringify(this.getFolders(value)), ack: true });
