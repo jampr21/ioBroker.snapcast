@@ -136,7 +136,6 @@ class Snapcast extends utils.Adapter {
 
 		const ServerGetStatus_request = { "id": 1, "jsonrpc": "2.0", "method": "Server.GetStatus" };
 
-
 		await this.setStateAsync("currentPathList", { val: JSON.stringify(this.getFolders(this.config.media_path)), ack: true });
 		await this.setStateAsync("currentPath", { val: this.config.media_path, ack: true });
 
