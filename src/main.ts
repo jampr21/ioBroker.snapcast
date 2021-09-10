@@ -12,7 +12,6 @@ import * as net from "net";
 import * as ns_path from "path";
 
 import connection from "ws";
-import * as child from "child_process";
 
 
 class Snapcast extends utils.Adapter {
@@ -240,7 +239,7 @@ class Snapcast extends utils.Adapter {
 		if (ns_path.extname(path).substr(1).localeCompare("mp3")){
 
 			try{
-			files = fs.readdirSync(path);
+				files = fs.readdirSync(path);
 			} catch(err){
 				this.log.error("no such file or directory: "+ path);
 			}
@@ -259,17 +258,17 @@ class Snapcast extends utils.Adapter {
 			this.log.info(`play ${path}`);
 			//https://nodejs.org/docs/v8.1.4/api/child_process.html#child_process_child_process_exec_command_options_callback
 
+			/* eslint-disable */
+			let lame= require("@suldashi/lame");
 
-			var lame= require('@suldashi/lame');
-
-			var client = new net.Socket();
+			let client = new net.Socket();
 
 			client.connect(this.tcp_port,   this.tcp_host   );
 
 			fs.createReadStream(path)
-			.pipe(new lame.Decoder)
-			.pipe(client)
-			.close;
+				.pipe(new lame.Decoder)
+				.pipe(client)
+				.close;
 
 			result.push({"path" : path, "filename": "", "type" : ns_path.extname(path).substr(1)});
 
